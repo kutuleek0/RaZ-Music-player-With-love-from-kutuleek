@@ -1,4 +1,10 @@
 {
   "latest_version": "1.0.0",
-  "download_url": "RaZ/dist/RaZPlayer.exe"
+  "download_url": "https://github.com/kutuleek0/RaZ-Music-player-With-love-from-kutuleek/archive/refs/tags/Release.zip"
+    "changelog": [
+    "Первый публичный релиз плеера!",
+    "Реализована система поиска и скачивания треков.",
+    "Добавлена система тем с редактором.",
+    "Внедрен механизм автоматического обновления."
+  ]
 }
