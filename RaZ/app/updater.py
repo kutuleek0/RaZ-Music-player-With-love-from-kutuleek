@@ -8,7 +8,7 @@ from packaging import version
 
 # --- ИСПРАВЛЕНИЕ: URL указывает на "raw" (сырую) версию файла на GitHub ---
 # Это гарантирует, что мы получаем JSON, а не HTML страницу
-VERSION_URL = "https://raw.githubusercontent.com/kutuleek0/RaZ-Music-player-With-love-from-kutuleek/main/version.json"
+VERSION_URL = "https://raw.githubusercontent.com/kutuleek0/RaZ-Music-player-With-love-from-kutuleek/refs/heads/main/version.json"
 
 def check_for_updates(current_version_str):
     try:
@@ -87,4 +87,5 @@ echo Удаление временного файла...
     except Exception as e:
         messagebox.showerror("Ошибка обновления", f"Не удалось завершить обновление: {e}")
         if os.path.exists(new_exe_temp_name):
+
             os.remove(new_exe_temp_name)
