@@ -16,7 +16,7 @@ from .ui_panels import SidebarFrame, ContentFrame, PlayerControlFrame
 from PIL import Image
 from .data_manager import FAVORITES_NAME
 
-VERSION = "1.0.3" 
+VERSION = "1.0.4" 
 
 class RaZPlayer(ctk.CTk):
     def __init__(self):

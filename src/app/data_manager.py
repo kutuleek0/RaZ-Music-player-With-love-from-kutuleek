@@ -1,16 +1,30 @@
 # src/app/data_manager.py
 import json
 import os
+import sys
 
-# --- НОВАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ПУТЕЙ ---
-# Абсолютный путь к этому файлу -> .../RaZ/src/app/data_manager.py
-_CURRENT_FILE_PATH = os.path.abspath(__file__)
-# Путь к папке app -> .../RaZ/src/app
-_APP_DIR = os.path.dirname(_CURRENT_FILE_PATH)
-# Путь к папке src -> .../RaZ/src
-_SRC_DIR = os.path.dirname(_APP_DIR)
-# Путь к корню проекта -> .../RaZ/
-PROJECT_ROOT = os.path.dirname(_SRC_DIR)
+# --- НОВАЯ, УНИВЕРСАЛЬНАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ПУТЕЙ ---
+def is_frozen():
+    """ Проверяет, запущено ли приложение как .exe """
+    return getattr(sys, 'frozen', False)
+
+def get_project_root():
+    """ Возвращает путь к папке, где лежит .exe или к корню проекта при запуске из исходников. """
+    if is_frozen():
+        # Если это .exe, корень - это папка, где лежит сам .exe файл
+        return os.path.dirname(sys.executable)
+    # Если это исходники, поднимаемся на 2 уровня от этого файла (app -> src -> project_root)
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def get_app_root():
+    """ Возвращает путь к ресурсам, вкомпилированным в .exe, или к корню проекта. """
+    if is_frozen():
+        # Внутри .exe ресурсы лежат во временной папке _MEIPASS
+        return sys._MEIPASS
+    return get_project_root()
+
+PROJECT_ROOT = get_project_root()
+APP_ROOT = get_app_root()
 # --- КОНЕЦ НОВОЙ ЛОГИКИ ---
 
 DATA_DIR = os.path.join(PROJECT_ROOT, "RaZ_Data")
@@ -27,16 +41,14 @@ FAVORITES_NAME = "❤️ Избранное"
 # (Все функции load_config, save_config, load_playlist, save_playlist остаются БЕЗ ИЗМЕНЕНИЙ)
 def load_config():
     try:
-        with open(CONFIG_FILE, 'r') as f: 
-            config = json.load(f)
-            if 'download_covers' not in config: config['download_covers'] = True
-            return config
+        with open(CONFIG_FILE, 'r') as f: config = json.load(f)
+        if 'download_covers' not in config: config['download_covers'] = True
+        return config
     except (FileNotFoundError, json.JSONDecodeError):
         return {"theme": "Яндекс.Ночь", "volume": 1.0, "download_covers": True}
 
 def save_config(theme, volume, download_covers):
-    with open(CONFIG_FILE, 'w') as f: 
-        json.dump({"theme": theme, "volume": volume, "download_covers": download_covers}, f, indent=4)
+    with open(CONFIG_FILE, 'w') as f: json.dump({"theme": theme, "volume": volume, "download_covers": download_covers}, f, indent=4)
 
 def load_playlist():
     if os.path.exists(DATA_FILE):

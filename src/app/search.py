@@ -1,3 +1,4 @@
+# src/app/search.py
 import os
 import time
 import threading
@@ -11,8 +12,8 @@ from . import data_manager
 
 # Используем пути из data_manager
 DOWNLOAD_PATH = os.path.join(data_manager.DATA_DIR, "music")
-FFMPEG_PATH = os.path.join(data_manager.PROJECT_ROOT, "ffmpeg.exe")
-
+# Этот путь теперь указывает на ffmpeg.exe, который лежит рядом с exe или в корне проекта
+FFMPEG_PATH = os.path.join(data_manager.APP_ROOT, "ffmpeg.exe") 
 # ... (остальной код файла без изменений)
 def load_image_from_url(url, size, callback):
     try:
@@ -106,7 +107,7 @@ def download_track(app, track_data, download_btn, preview_btn):
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
     
     filename_template = os.path.join(DOWNLOAD_PATH, '%(title)s.%(ext)s')
-    # Используем новый абсолютный путь к ffmpeg
+    # Используем новый универсальный путь к ffmpeg
     ffmpeg_location = FFMPEG_PATH if os.path.exists(FFMPEG_PATH) else "ffmpeg"
 
     ydl_opts = {
