@@ -84,20 +84,27 @@ class SidebarFrame(ctk.CTkFrame):
         self.playlists_scroll_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
     def apply_theme(self, colors):
-        self.theme_colors = colors; self.configure(fg_color=colors["frame"])
+        self.theme_colors = colors
+        self.configure(fg_color=colors["frame"])
         self.logo_label.configure(text_color=colors["text_bright"])
+
         is_dark = colors.get("bg", "#000000") < "#888888"
         secondary_color = _adjust_color_brightness(colors["frame"], 1.1 if is_dark else 0.95)
+
         self.nav_container.configure(fg_color=secondary_color)
         self.playlist_container.configure(fg_color=secondary_color)
         self.playlist_label.configure(text_color=colors["text_dim"])
         self.add_playlist_button_small.configure(fg_color=colors["accent"], text_color=colors["text_on_accent"], hover_color=colors["hover"])
+
         self.playlists_scroll_frame.configure(label_text="", fg_color="transparent", scrollbar_button_color=colors.get("accent"), scrollbar_button_hover_color=colors.get("hover"))
-        if hasattr(self.playlists_scroll_frame, "_scrollbar"): self.playlists_scroll_frame._scrollbar.configure(button_color=colors.get("accent"), button_hover_color=colors.get("hover"))
+        if hasattr(self.playlists_scroll_frame, "_scrollbar"):
+            self.playlists_scroll_frame._scrollbar.configure(button_color=colors.get("accent"), button_hover_color=colors.get("hover"))
+
         all_buttons = list(self.playlist_buttons.values()) + [self.library_button, self.search_button, self.themes_button]
         for btn in all_buttons:
             if btn.winfo_exists():
-                is_nav_selected = (self.current_nav_button == btn); is_playlist_selected = (self.current_playlist_button == btn)
+                is_nav_selected = (self.current_nav_button == btn)
+                is_playlist_selected = (self.current_playlist_button == btn)
                 self.apply_theme_to_button(btn, is_selected=(is_nav_selected or is_playlist_selected))
 
     def apply_theme_to_button(self, btn, is_selected):
@@ -679,33 +686,32 @@ class ContentFrame(ctk.CTkFrame):
 
     def create_result_widget(self, parent, data, row):
         colors = self.controller.THEMES[self.controller.theme_name]
-        
+
         widget_frame = ctk.CTkFrame(parent, fg_color="transparent")
         widget_frame.pack(fill="x", pady=5)
-        
+
         cover_label = ctk.CTkLabel(widget_frame, text="")
         cover_label.pack(side="left", padx=10)
-        
+
         thumbnail_url = data.get('thumbnail')
         if thumbnail_url:
             def update_image(img):
                 if img and cover_label.winfo_exists():
                     cover_label.configure(image=img)
             search.start_image_load_thread(thumbnail_url, (64, 64), update_image)
-        
+
         info_frame = ctk.CTkFrame(widget_frame, fg_color="transparent")
         info_frame.pack(side="left", fill="x", expand=True)
-        
+
         ctk.CTkLabel(info_frame, text=data.get('title', 'Без названия'), anchor="w").pack(fill="x")
         ctk.CTkLabel(info_frame, text=data.get('uploader', 'Неизвестный исполнитель'), text_color=colors["text_dim"], anchor="w").pack(fill="x")
-        
+
         buttons_frame = ctk.CTkFrame(widget_frame, fg_color="transparent")
         buttons_frame.pack(side="right", padx=10)
 
-        preview_btn = ctk.CTkButton(buttons_frame, text="▶", width=40, command=lambda: search.start_preview_thread(self.controller, data, preview_btn))
-        preview_btn.pack(side="left", padx=5)
-
-        download_btn = ctk.CTkButton(buttons_frame, text="⏬", width=40, command=lambda: search.start_download_thread(self.controller, data, download_btn, preview_btn))
+        # --- ИЗМЕНЕНИЕ: Кнопка предпрослушивания и её логика полностью удалены ---
+        download_btn = ctk.CTkButton(buttons_frame, text="⏬", width=40, 
+                                     command=lambda: search.start_download_thread(self.controller, data, download_btn))
         download_btn.pack(side="left", padx=5)
 
     def display_themes_view(self):
@@ -713,37 +719,37 @@ class ContentFrame(ctk.CTkFrame):
         self.view_id = "themes"
         colors = self.controller.THEMES[self.controller.theme_name]
         self.configure(fg_color=colors["bg"])
-    
+
         ctk.CTkLabel(self, text="Темы оформления", font=ctk.CTkFont(size=24, weight="bold")).pack(pady=20, padx=20, anchor="w")
-    
+
         scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=20, pady=0)
-        
+
         default_themes = theme_manager.get_default_themes()
-    
+
         for theme_name, theme_colors in self.controller.THEMES.items():
             border_color_inactive = colors["bg"] 
             theme_card = ctk.CTkFrame(scroll_frame, border_width=2, 
                                       border_color=theme_colors["accent"] if self.controller.theme_name == theme_name else border_color_inactive)
             theme_card.pack(fill="x", pady=10, padx=10)
-            
+
             # --- ИЗМЕНЕНИЕ: Добавляем кнопку редактирования для кастомных тем ---
             if theme_name not in default_themes:
                 edit_button = ctk.CTkButton(theme_card, text="✎", font=ctk.CTkFont(size=20), width=40,
                                             fg_color="transparent", hover_color=colors["frame_secondary"],
                                             command=partial(self.controller.open_theme_editor, theme_name))
                 edit_button.pack(side="right", fill="y", padx=5, pady=5)
-    
+
             card_button = ctk.CTkButton(theme_card, text=theme_name, height=60, 
                                         fg_color=theme_colors["frame"],
                                         hover_color=theme_colors["hover"],
                                         text_color=theme_colors["text_bright"],
                                         command=partial(self.controller.set_theme, theme_name))
             card_button.pack(fill="both", expand=True, padx=5, pady=5)
-    
+
         add_theme_card = ctk.CTkFrame(scroll_frame, fg_color="transparent", border_width=2, border_color=colors["frame_secondary"], corner_radius=12)
         add_theme_card.pack(fill="x", pady=10, padx=10)
-    
+
         # Вызываем редактор для создания НОВОЙ темы (без аргументов)
         add_theme_button = ctk.CTkButton(add_theme_card, text="+", height=60,
                                          font=ctk.CTkFont(size=30),
@@ -804,12 +810,18 @@ class PlayerControlFrame(ctk.CTkFrame):
         self.apply_theme(self.theme_colors)
     
     def apply_theme(self, colors):
-        self.theme_colors = colors; self.configure(fg_color=colors["frame"])
+        self.theme_colors = colors
+        self.configure(fg_color=colors["frame"])
         is_dark = colors.get("bg", "#000000") < "#888888"
         border_color = _adjust_color_brightness(colors["frame"], 1.2 if is_dark else 0.9)
         self.configure(border_color=border_color)
         self.placeholder_image = ctk.CTkImage(light_image=Image.new("RGB", (64, 64), colors["frame"]), size=(64, 64))
-        if self.controller.current_track_index == -1 and not self.controller.is_previewing: self.now_playing_cover.configure(image=self.placeholder_image)
+        
+        # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        # Удалена проверка self.controller.is_previewing
+        if self.controller.current_track_index == -1:
+            self.now_playing_cover.configure(image=self.placeholder_image)
+    
         text_color_on_accent = colors["text_on_accent"]
         self.now_playing_label.configure(text_color=colors["text_bright"])
         self.current_time_label.configure(text_color=colors["text_dim"])

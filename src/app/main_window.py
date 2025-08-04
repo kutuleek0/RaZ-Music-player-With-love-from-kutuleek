@@ -12,13 +12,13 @@ import mutagen
 
 from . import data_manager, theme_manager, search
 from . import updater
-from .ui_components import GradientFrame, VolumeDialog
+from .ui_components import GradientFrame, VolumeDialog, SelectPlaylistDialog
 from .ui_panels import SidebarFrame, ContentFrame, PlayerControlFrame
 from PIL import Image
 from .data_manager import FAVORITES_NAME
 from .theme_editor import ThemeEditor
 
-VERSION = "1.0.8" # Версия обновлена
+VERSION = "1.0.5" # Версия обновлена
 
 class RaZPlayer(ctk.CTkFrame):
     def __init__(self, master):
@@ -36,7 +36,6 @@ class RaZPlayer(ctk.CTkFrame):
         self.is_shuffle = False
         self.is_repeat = False
         self.is_recommend_mode = False
-        self.is_previewing = False
         self.seeking = False
         self.last_seek_position = 0
         self.pygame = pygame
@@ -272,16 +271,16 @@ class RaZPlayer(ctk.CTkFrame):
     def play_track(self, start_time=0):
         self.is_previewing = False
         if self.current_track_index == -1: self.stop(); return
-        
+
         current_playlist = self.playlist_data.get(self.current_category, [])
         if not (0 <= self.current_track_index < len(current_playlist)): self.stop(); return
-        
+
         track_info = current_playlist[self.current_track_index]
         track_path = track_info.get('path')
-        
+
         try:
             pygame.mixer.music.load(track_path)
-            
+
             if not track_info.get('duration'):
                  metadata = self._get_track_metadata(track_path)
                  track_info.update(metadata)
@@ -292,38 +291,32 @@ class RaZPlayer(ctk.CTkFrame):
 
             self.current_song_length = track_info.get('duration', 0)
             self.last_seek_position = start_time
-            
-            if start_time < 1: 
-                for category in self.playlist_data.values():
-                    for track in category:
-                        if track.get('path') == track_path:
-                            track['play_count'] = track.get('play_count', 0) + 1
-                self.player_bar.update_track_info_display(track_info)
+
+            # --- ИЗМЕНЕНИЕ: Логика увеличения play_count отсюда УДАЛЕНА ---
+            # Сразу обновляем информацию на плеере
+            self.player_bar.update_track_info_display(track_info)
 
             vol_mult = track_info.get('volume_multiplier', 1.0)
             effective_volume = self.last_volume * vol_mult
             pygame.mixer.music.set_volume(min(effective_volume, 1.0))
-            
+
             pygame.mixer.music.play(start=start_time)
             self.is_playing, self.is_paused = True, False
             self.player_bar.update_play_pause_button(True)
-            self.player_bar.update_track_info_display(track_info)
             self.player_bar.update_fav_button_status()
         except pygame.error as e:
             messagebox.showerror("Ошибка", f"Не удалось воспроизвести: {e}")
             self.is_playing = False
 
-    def stop(self, is_stopping_for_preview=False):
+    def stop(self):
         pygame.mixer.music.stop()
         self.is_playing, self.is_paused = False, False
-        
-        if not is_stopping_for_preview:
-            self.current_track_index = -1
-            self.player_bar.clear_track_info()
+        self.current_track_index = -1
 
+        self.player_bar.clear_track_info()
         self.player_bar.update_play_pause_button(False)
         self.player_bar.reset_progress()
-        
+
         if self.current_content_frame:
             self.current_content_frame.update_active_track_highlight()
 
@@ -375,26 +368,35 @@ class RaZPlayer(ctk.CTkFrame):
             self.select_and_play(new_index)
 
     def update_progress(self):
-        if (self.is_playing or self.is_previewing) and not self.is_paused:
+        current_pos = 0
+        # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        if self.is_playing and not self.is_paused:
             is_busy = pygame.mixer.music.get_busy()
-            
+
             if self.current_song_length > 0 and not self.seeking:
                 current_pos = self.last_seek_position + (pygame.mixer.music.get_pos() / 1000)
                 if current_pos > self.current_song_length:
                     current_pos = self.current_song_length
                 self.player_bar.update_progress_slider(current_pos, self.current_song_length)
-            
+
             if not is_busy and not self.seeking:
+                if self.current_song_length > 0 and (current_pos / self.current_song_length) > 0.6:
+                    if 0 <= self.current_track_index < len(self.playlist_data[self.current_category]):
+                        track_info = self.playlist_data[self.current_category][self.current_track_index]
+                        track_path = track_info.get('path')
+
+                        for category in self.playlist_data.values():
+                            for track in category:
+                                if track.get('path') == track_path:
+                                    track['play_count'] = track.get('play_count', 0) + 1
+
+                        self.player_bar.update_track_info_display(track_info)
+
                 self.last_seek_position = 0
-                if self.is_previewing:
-                    self.stop()
-                    self.is_previewing = False
-                elif self.is_repeat:
+                if self.is_repeat:
                     self.play_track()
                 else:
                     self.next_track()
-                    
-        self.after(100, self.update_progress)
 
     def on_slider_press(self, event): self.seeking = True
     def on_slider_drag(self, value_str):
@@ -539,25 +541,27 @@ class RaZPlayer(ctk.CTkFrame):
     
     def add_tracks_to_playlist(self, indices_to_add):
         if not indices_to_add: return
-        
+
         user_playlists = [name for name in self.playlist_data.keys() if name not in ["Все треки", "Загруженное", FAVORITES_NAME]]
+
         if not user_playlists:
-            messagebox.showinfo("Информация", "Сначала создайте плейлист.")
+            messagebox.showinfo("Информация", "Сначала создайте плейлист, чтобы добавить в него треки.")
             return
 
-        dialog = ctk.CTkInputDialog(text="Введите название плейлиста:", title="Добавить в плейлист")
-        playlist_name = dialog.get_input()
+        # --- ИЗМЕНЕНИЕ: Используем новый диалог вместо CTkInputDialog ---
+        dialog = SelectPlaylistDialog(self, title="Добавить в плейлист", playlist_names=user_playlists)
+        playlist_name = dialog.result
 
         if playlist_name and playlist_name in self.playlist_data:
             tracks_to_add = [self.playlist_data[self.current_category][i] for i in indices_to_add]
             target_playlist = self.playlist_data[playlist_name]
             added_count = 0
-            
+
             for track in tracks_to_add:
                 if not any(t['path'] == track['path'] for t in target_playlist):
                     target_playlist.append(track)
                     added_count += 1
-            
+
             if added_count > 0:
                 if f"playlist_{playlist_name}" in self.view_cache:
                     del self.view_cache[f"playlist_{playlist_name}"]
@@ -565,8 +569,8 @@ class RaZPlayer(ctk.CTkFrame):
                 messagebox.showinfo("Успешно", f"{added_count} трек(ов) добавлено в '{playlist_name}'.")
             else:
                 messagebox.showinfo("Информация", "Все выбранные треки уже есть в этом плейлисте.")
-
         elif playlist_name:
+            # Эта ветка теперь маловероятна, но оставляем на всякий случай
             messagebox.showerror("Ошибка", f"Плейлист '{playlist_name}' не найден.")
 
     def add_category(self, new_cat_name):

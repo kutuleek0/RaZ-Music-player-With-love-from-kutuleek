@@ -98,3 +98,33 @@ class VolumeDialog(ctk.CTkToplevel):
 
     def _update_label(self, value): self.label.configure(text=f"{int(value * 100)}%")
     def _on_ok(self): self.result = self.value_var.get(); self.destroy()
+class SelectPlaylistDialog(ctk.CTkToplevel):
+    def __init__(self, master, title, playlist_names):
+        super().__init__(master)
+        self.title(title)
+        self.transient(master)
+        self.grab_set()
+        
+        self.result = None
+        
+        if not playlist_names:
+            label = ctk.CTkLabel(self, text="Сначала создайте плейлист.")
+            label.pack(padx=20, pady=20)
+            self.after(2000, self.destroy)
+            return
+
+        scroll_frame = ctk.CTkScrollableFrame(self, label_text="Выберите плейлист:")
+        scroll_frame.pack(padx=15, pady=15, fill="both", expand=True)
+
+        for name in playlist_names:
+            btn = ctk.CTkButton(scroll_frame, text=name, command=lambda n=name: self._on_select(n))
+            btn.pack(fill="x", padx=10, pady=5)
+            
+        cancel_button = ctk.CTkButton(self, text="Отмена", fg_color="transparent", border_width=1, command=self.destroy)
+        cancel_button.pack(padx=15, pady=(0, 15), side="bottom", fill="x")
+
+        self.wait_window(self)
+
+    def _on_select(self, name):
+        self.result = name
+        self.destroy()
