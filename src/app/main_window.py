@@ -218,42 +218,39 @@ class RaZPlayer(ctk.CTkFrame):
 
     def remove_tracks(self, indices_to_remove):
         if not indices_to_remove or not self.current_content_frame: return
-
+    
         current_playlist_view = self.playlist_data[self.current_category]
         tracks_to_remove_info = [current_playlist_view[i] for i in indices_to_remove]
         
         track_names = "\n".join([f"- {t['name']}" for t in tracks_to_remove_info[:5]])
         if len(tracks_to_remove_info) > 5: track_names += "\n..."
         
-        is_all_tracks = self.current_category == "Все треки"
-        msg = (f"Вы уверены, что хотите удалить следующие треки из ВСЕХ плейлистов и с диска?\n\n{track_names}\n\nЭто действие необратимо." 
-               if is_all_tracks else 
+        is_all_tracks_view = self.current_category == "Все треки"
+        
+        # Изменяем текст сообщения, чтобы он был корректным
+        msg = (f"Вы уверены, что хотите удалить следующие треки из медиатеки?\n\n{track_names}\n\nТреки будут удалены из всех плейлистов, но файлы на диске останутся." 
+               if is_all_tracks_view else 
                f"Вы уверены, что хотите удалить следующие треки из плейлиста '{self.current_category}'?\n\n{track_names}")
-
+    
         if not messagebox.askyesno("Подтверждение удаления", msg): return
-
+    
         paths_to_remove = {t['path'] for t in tracks_to_remove_info}
-
-        if is_all_tracks:
-            for path in paths_to_remove:
-                if os.path.exists(path):
-                    try:
-                        os.remove(path)
-                        base, _ = os.path.splitext(path)
-                        for ext in ['.jpg', '.jpeg', '.png', '.webp']:
-                            cover = base + ext
-                            if os.path.exists(cover): os.remove(cover)
-                    except OSError as e:
-                        messagebox.showerror("Ошибка", f"Не удалось удалить файл трека: {e}")
-
+    
+        # --- БЛОК С КРИТИЧЕСКОЙ ОШИБКОЙ (os.remove) ПОЛНОСТЬЮ ЗАМЕНЕН ---
+        if is_all_tracks_view:
+            # Если мы в "Все треки", удаляем упоминания о треке из ВСЕХ плейлистов
+            for category in self.playlist_data:
+                self.playlist_data[category] = [t for t in self.playlist_data[category] if t.get('path') not in paths_to_remove]
+            # Очищаем весь кеш, так как затронуты все плейлисты
             self.view_cache.clear() 
-            for cat in list(self.playlist_data.keys()):
-                self.playlist_data[cat] = [t for t in self.playlist_data[cat] if t.get('path') not in paths_to_remove]
         else:
+            # Если мы в обычном плейлисте, удаляем только из него
             self.playlist_data[self.current_category] = [t for t in current_playlist_view if t.get('path') not in paths_to_remove]
+            # Очищаем кеш только для этого плейлиста
             if f"playlist_{self.current_category}" in self.view_cache:
                 del self.view_cache[f"playlist_{self.current_category}"]
-
+        # --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
+    
         self.stop()
         self.show_view(f"playlist_{self.current_category}")
         data_manager.save_playlist(self.playlist_data)
